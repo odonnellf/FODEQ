@@ -166,7 +166,8 @@ bool FODEQAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* FODEQAudioProcessor::createEditor()
 {
-    return new FODEQAudioProcessorEditor (*this);
+    //return new FODEQAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
@@ -181,6 +182,80 @@ void FODEQAudioProcessor::setStateInformation (const void* data, int sizeInBytes
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateParameterLayout()
+{
+    // Three equalizer bands:
+    // 1. Low-cut: controllable frequency cut-off and slope of the cut-off
+    // 2. High-cut: controllable frequency cut-off and slope of the cut-off
+    // 3. Parametric/Peak: controllable frequency, gain and quality (narrow or wide)
+
+    juce::AudioProcessorValueTreeState::ParameterLayout Layout;
+
+	const float RangeStart = 20.f; // In Hz
+	const float RangeEnd = 20000.f; // In Hz
+	const float IntervalValue = 1.f; // Slider will change parameter value in steps of 1
+	const float SkewFactor = 1.f; // Alters the way values are distributes across the range (e.g if we wanted the first half of the slider to cover more/less than just the first half of the range)
+    auto NormalRange = juce::NormalisableRange<float>(RangeStart, RangeEnd, IntervalValue, SkewFactor);
+
+    // 1. Low-cut
+	const juce::String LowCutParameterId = "LowCut Freq";
+	const juce::String LowCutParameterName = "LowCut Freq";
+	const float LowCutDefaultValue = RangeStart;
+    Layout.add(std::make_unique<juce::AudioParameterFloat>(LowCutParameterId, LowCutParameterName, NormalRange, LowCutDefaultValue));
+
+    // 2. High-cut
+	const juce::String HighCutParameterId = "HighCut Freq";
+	const juce::String HighCutParameterName = "HighCut Freq";
+    const float HighCutDefaultValue = RangeEnd;
+
+    Layout.add(std::make_unique<juce::AudioParameterFloat>(HighCutParameterId, HighCutParameterName, NormalRange, HighCutDefaultValue));
+
+    // 3. Peak
+    // a) Peak Freq
+	const juce::String PeakFreqParameterId = "Peak Freq";
+	const juce::String PeakFreqParameterName = "Peak Freq";
+	const float PeakFreqDefaultValue = 750.f;
+
+    Layout.add(std::make_unique<juce::AudioParameterFloat>(PeakFreqParameterId, PeakFreqParameterName, NormalRange, PeakFreqDefaultValue));
+
+    // b). Peak Gain
+	const juce::String PeakGainParameterId = "Peak Gain";
+	const juce::String PeakGainParameterName = "Peak Gain";
+	const float PeakGainDefaultValue = 0.f;
+
+    auto PeakGainNormalRange = juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f);
+    Layout.add(std::make_unique<juce::AudioParameterFloat>(PeakGainParameterId, PeakGainParameterName, PeakGainNormalRange, PeakGainDefaultValue));
+
+    // c). Peak Quality (Q) -> 0.1 - 10.0
+	const juce::String PeakQualityParameterId = "Peak Quality";
+	const juce::String PeakQualityParameterName = "Peak Quality";
+    const float PeakQualityDefaultValue = 1.f;
+
+    auto PeakQualityNormalRange = juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f);
+    Layout.add(std::make_unique<juce::AudioParameterFloat>(PeakQualityParameterId, PeakQualityParameterName, PeakQualityNormalRange, PeakQualityDefaultValue));
+
+    // Options for Low-cut and High-cut: changing steepness of filter cut
+    juce::StringArray OptionsArray;
+    const int NumOptions = 4;
+    for (int i = 0; i < NumOptions; ++i)
+    {
+        juce::String Option;
+        Option << (12 + i * 12);
+        Option << " db/Oct";
+        OptionsArray.add(Option);
+    }
+
+    const juce::String LowCutSlopeParameterId = "LowCut Slope";
+    const juce::String LowCutSlopeParameterName = "LowCut Slope";
+	const juce::String HighCutSlopeParameterId = "HighCut Slope";
+	const juce::String HighCutSlopeParameterName = "HighCut Slope";
+    const float CutSlopeDefaultValue = 0.f;
+    Layout.add(std::make_unique<juce::AudioParameterChoice>(LowCutSlopeParameterId, LowCutSlopeParameterName, OptionsArray, CutSlopeDefaultValue));
+    Layout.add(std::make_unique<juce::AudioParameterChoice>(HighCutSlopeParameterId, HighCutSlopeParameterName, OptionsArray, CutSlopeDefaultValue));
+
+    return Layout;
 }
 
 //==============================================================================
