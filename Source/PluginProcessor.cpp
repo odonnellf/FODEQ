@@ -95,6 +95,17 @@ void FODEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+
+    // We need to prepare the filters before we use them. We do this via a ProcessSpec object
+    // which gets passed to each channel chain (and subsequently to each link in each chain).
+    juce::dsp::ProcessSpec ProcessSpec;
+    ProcessSpec.maximumBlockSize = samplesPerBlock; // Max num of samples it will process at one time
+    ProcessSpec.numChannels = 1; // Mono chains so one channel;
+    ProcessSpec.sampleRate = sampleRate;
+
+    // Pass the spec to each chain to prepare for processing
+    LeftChannelChain.prepare(ProcessSpec);
+    RightChannelChain.prepare(ProcessSpec);
 }
 
 void FODEQAudioProcessor::releaseResources()
@@ -144,18 +155,20 @@ void FODEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
 
-        // ..do something to the data...
-    }
+    // Processor chain requires a processing context to get passed to it in order to run audio through the
+    // links in the chain. To create a processing context we must supply it with an AudioBlock instance.
+    juce::dsp::AudioBlock<float> AudioBlock(buffer);
+    
+    // Extract the left and right channel from the buffer (channels 0 and 1)
+    auto LeftBlock = AudioBlock.getSingleChannelBlock(0);
+    auto RightBlock = AudioBlock.getSingleChannelBlock(1);
+
+    juce::dsp::ProcessContextReplacing<float> LeftContext(LeftBlock);
+    juce::dsp::ProcessContextReplacing<float> RightContext(RightBlock);
+
+    LeftChannelChain.process(LeftContext);
+    RightChannelChain.process(RightContext);
 }
 
 //==============================================================================

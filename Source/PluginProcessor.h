@@ -58,6 +58,14 @@ public:
     juce::AudioProcessorValueTreeState AudioProcessorValueTreeState {*this, nullptr, "Parameters", CreateParameterLayout()};
 
 private:
+    // Type aliases (since the DSP namespace uses a lot of nested namespaces)
+    using Filter = juce::dsp::IIR::Filter<float>;
+    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+    using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>;
+
+    MonoChain LeftChannelChain;
+    MonoChain RightChannelChain;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessor)
 };
