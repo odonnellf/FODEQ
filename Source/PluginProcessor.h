@@ -1,17 +1,23 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
 #pragma once
 
 #include <JuceHeader.h>
 
+struct ChainSettings
+{
+    float PeakFreq = 0.f;
+    float PeakGainInDecibels = 0.f;
+    float PeakQuality = 1.f;
+    float LowCutFreq = 0.f;
+    float HighCutFreq = 0.f;
+    int LowCutSlope = 0;
+    int HighCutSlope = 0;
+};
+
+ChainSettings GetChainSettings(juce::AudioProcessorValueTreeState& ValueTreeState);
+
 //==============================================================================
 /**
+* A basic EQ 
 */
 class FODEQAudioProcessor  : public juce::AudioProcessor
 {
@@ -65,6 +71,13 @@ private:
 
     MonoChain LeftChannelChain;
     MonoChain RightChannelChain;
+
+    enum ChainPositions
+    {
+        LowCut,
+        Peak,
+        HighCut
+    };
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessor)

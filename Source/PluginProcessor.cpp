@@ -9,6 +9,21 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+static const juce::String LowCutParameterId = "LowCut Freq";
+static const juce::String LowCutParameterName = "LowCut Freq";
+static const juce::String HighCutParameterId = "HighCut Freq";
+static const juce::String HighCutParameterName = "HighCut Freq";
+static const juce::String PeakFreqParameterId = "Peak Freq";
+static const juce::String PeakFreqParameterName = "Peak Freq";
+static const juce::String PeakGainParameterId = "Peak Gain";
+static const juce::String PeakGainParameterName = "Peak Gain";
+static const juce::String PeakQualityParameterId = "Peak Quality";
+static const juce::String PeakQualityParameterName = "Peak Quality";
+static const juce::String LowCutSlopeParameterId = "LowCut Slope";
+static const juce::String LowCutSlopeParameterName = "LowCut Slope";
+static const juce::String HighCutSlopeParameterId = "HighCut Slope";
+static const juce::String HighCutSlopeParameterName = "HighCut Slope";
+
 //==============================================================================
 FODEQAudioProcessor::FODEQAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -106,6 +121,14 @@ void FODEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     // Pass the spec to each chain to prepare for processing
     LeftChannelChain.prepare(ProcessSpec);
     RightChannelChain.prepare(ProcessSpec);
+
+    // Coefficients for Peak filter
+    auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
+    auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
+    auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
+
+    *LeftChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
+    *RightChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
 }
 
 void FODEQAudioProcessor::releaseResources()
@@ -155,6 +178,14 @@ void FODEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
+    // Always update parameters *before* we process audio through them
+    // Duplicated and modified from FODEQAudioProcessor::prepareToPlay
+	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
+	auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
+	auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(), ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
+
+	*LeftChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
+	*RightChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
 
     // Processor chain requires a processing context to get passed to it in order to run audio through the
     // links in the chain. To create a processing context we must supply it with an AudioBlock instance.
@@ -209,43 +240,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateP
 	const float RangeStart = 20.f; // In Hz
 	const float RangeEnd = 20000.f; // In Hz
 	const float IntervalValue = 1.f; // Slider will change parameter value in steps of 1
-	const float SkewFactor = 1.f; // Alters the way values are distributes across the range (e.g if we wanted the first half of the slider to cover more/less than just the first half of the range)
+	const float SkewFactor = 0.25f; // Alters the way values are distributes across the range (e.g if we wanted the first half of the slider to cover more/less than just the first half of the range)
     auto NormalRange = juce::NormalisableRange<float>(RangeStart, RangeEnd, IntervalValue, SkewFactor);
 
     // 1. Low-cut
-	const juce::String LowCutParameterId = "LowCut Freq";
-	const juce::String LowCutParameterName = "LowCut Freq";
 	const float LowCutDefaultValue = RangeStart;
     Layout.add(std::make_unique<juce::AudioParameterFloat>(LowCutParameterId, LowCutParameterName, NormalRange, LowCutDefaultValue));
 
     // 2. High-cut
-	const juce::String HighCutParameterId = "HighCut Freq";
-	const juce::String HighCutParameterName = "HighCut Freq";
     const float HighCutDefaultValue = RangeEnd;
-
     Layout.add(std::make_unique<juce::AudioParameterFloat>(HighCutParameterId, HighCutParameterName, NormalRange, HighCutDefaultValue));
 
     // 3. Peak
     // a) Peak Freq
-	const juce::String PeakFreqParameterId = "Peak Freq";
-	const juce::String PeakFreqParameterName = "Peak Freq";
 	const float PeakFreqDefaultValue = 750.f;
-
     Layout.add(std::make_unique<juce::AudioParameterFloat>(PeakFreqParameterId, PeakFreqParameterName, NormalRange, PeakFreqDefaultValue));
 
     // b). Peak Gain
-	const juce::String PeakGainParameterId = "Peak Gain";
-	const juce::String PeakGainParameterName = "Peak Gain";
 	const float PeakGainDefaultValue = 0.f;
-
     auto PeakGainNormalRange = juce::NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f);
     Layout.add(std::make_unique<juce::AudioParameterFloat>(PeakGainParameterId, PeakGainParameterName, PeakGainNormalRange, PeakGainDefaultValue));
 
     // c). Peak Quality (Q) -> 0.1 - 10.0
-	const juce::String PeakQualityParameterId = "Peak Quality";
-	const juce::String PeakQualityParameterName = "Peak Quality";
     const float PeakQualityDefaultValue = 1.f;
-
     auto PeakQualityNormalRange = juce::NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f);
     Layout.add(std::make_unique<juce::AudioParameterFloat>(PeakQualityParameterId, PeakQualityParameterName, PeakQualityNormalRange, PeakQualityDefaultValue));
 
@@ -260,10 +277,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateP
         OptionsArray.add(Option);
     }
 
-    const juce::String LowCutSlopeParameterId = "LowCut Slope";
-    const juce::String LowCutSlopeParameterName = "LowCut Slope";
-	const juce::String HighCutSlopeParameterId = "HighCut Slope";
-	const juce::String HighCutSlopeParameterName = "HighCut Slope";
     const float CutSlopeDefaultValue = 0.f;
     Layout.add(std::make_unique<juce::AudioParameterChoice>(LowCutSlopeParameterId, LowCutSlopeParameterName, OptionsArray, CutSlopeDefaultValue));
     Layout.add(std::make_unique<juce::AudioParameterChoice>(HighCutSlopeParameterId, HighCutSlopeParameterName, OptionsArray, CutSlopeDefaultValue));
@@ -276,4 +289,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateP
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new FODEQAudioProcessor();
+}
+
+ChainSettings GetChainSettings(juce::AudioProcessorValueTreeState& ValueTreeState)
+{
+    ChainSettings Settings;
+
+    Settings.LowCutFreq = ValueTreeState.getRawParameterValue(LowCutParameterName)->load();
+    Settings.HighCutFreq = ValueTreeState.getRawParameterValue(HighCutParameterName)->load();
+    Settings.PeakFreq = ValueTreeState.getRawParameterValue(PeakFreqParameterName)->load();
+    Settings.PeakGainInDecibels = ValueTreeState.getRawParameterValue(PeakGainParameterName)->load();
+    Settings.PeakQuality = ValueTreeState.getRawParameterValue(PeakQualityParameterName)->load();
+    Settings.LowCutSlope = ValueTreeState.getRawParameterValue(LowCutSlopeParameterName)->load();
+    Settings.HighCutSlope = ValueTreeState.getRawParameterValue(HighCutSlopeParameterName)->load();
+
+    return Settings;
 }
