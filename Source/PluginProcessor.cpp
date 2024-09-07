@@ -198,8 +198,8 @@ bool FODEQAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* FODEQAudioProcessor::createEditor()
 {
-    //return new FODEQAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new FODEQAudioProcessorEditor (*this);
+    //return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
