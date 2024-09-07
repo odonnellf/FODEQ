@@ -123,12 +123,8 @@ void FODEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     RightChannelChain.prepare(ProcessSpec);
 
     // Coefficients for Peak filter
-    auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
-    auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
-    auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(sampleRate, ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
-
-    *LeftChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
-    *RightChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
+	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
+	UpdatePeakFilter(ChainSettings);
 
     // Slope choice 0: 12 db/oct -> order: 2. Slope choice 1: 24 db/oct -> order: 4. Slope choice 2: 36 db/oct -> order: 6. Slope choice 3: 48 db/oct -> order: 8
     auto CutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, sampleRate, 2 * (ChainSettings.LowCutSlope + 1));
@@ -240,13 +236,8 @@ void FODEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // Always update parameters *before* we process audio through them
-    // Duplicated and modified from FODEQAudioProcessor::prepareToPlay
 	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
-	auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
-	auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(), ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
-
-	*LeftChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
-	*RightChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
+    UpdatePeakFilter(ChainSettings);
 
 	auto CutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, getSampleRate(), 2 * (ChainSettings.LowCutSlope + 1));
 
@@ -403,6 +394,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateP
     Layout.add(std::make_unique<juce::AudioParameterChoice>(HighCutSlopeParameterId, HighCutSlopeParameterName, OptionsArray, CutSlopeDefaultValue));
 
     return Layout;
+}
+
+void FODEQAudioProcessor::UpdatePeakFilter(const ChainSettings& ChainSettings)
+{
+	auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
+	auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(), ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
+
+    UpdateCoefficients(LeftChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
+    UpdateCoefficients(RightChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
+}
+
+void FODEQAudioProcessor::UpdateCoefficients(Coefficients& Old, const Coefficients& Replacements)
+{
+    *Old = *Replacements;
 }
 
 //==============================================================================

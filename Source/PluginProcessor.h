@@ -87,6 +87,11 @@ private:
         HighCut
     };
 
+    void UpdatePeakFilter(const ChainSettings& ChainSettings);
+
+    using Coefficients = Filter::CoefficientsPtr;
+    static void UpdateCoefficients(Coefficients& Old, const Coefficients& Replacements);
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessor)
 };
