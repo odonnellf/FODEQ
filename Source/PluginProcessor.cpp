@@ -296,11 +296,11 @@ void FODEQAudioProcessor::UpdatePeakFilter(const ChainSettings& ChainSettings)
 	auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
 	auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(), ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
 
-    UpdateCoefficients(LeftChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
-    UpdateCoefficients(RightChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
+    SetCoefficients(LeftChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
+    SetCoefficients(RightChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
 }
 
-void FODEQAudioProcessor::UpdateCoefficients(Coefficients& Old, const Coefficients& Replacements)
+void FODEQAudioProcessor::SetCoefficients(Coefficients& Old, const Coefficients& Replacements)
 {
     *Old = *Replacements;
 }
