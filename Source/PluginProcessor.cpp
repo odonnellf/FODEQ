@@ -122,9 +122,7 @@ void FODEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     LeftChannelChain.prepare(ProcessSpec);
     RightChannelChain.prepare(ProcessSpec);
 
-    // Coefficients for Peak filter
-	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
-    UpdateFilters(ChainSettings);
+    UpdateFilters();
 }
 
 void FODEQAudioProcessor::releaseResources()
@@ -175,8 +173,7 @@ void FODEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         buffer.clear (i, 0, buffer.getNumSamples());
 
     // Always update parameters *before* we process audio through them
-	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
-    UpdateFilters(ChainSettings);
+    UpdateFilters();
 
     // Processor chain requires a processing context to get passed to it in order to run audio through the
     // links in the chain. To create a processing context we must supply it with an AudioBlock instance.
@@ -211,12 +208,26 @@ void FODEQAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+
+    // Write the plugin state to the memory block
+    constexpr bool bAppendToExistingBlockContent = true;
+    juce::MemoryOutputStream MemOutputStream(destData, bAppendToExistingBlockContent);
+    APVS.state.writeToStream(MemOutputStream);
 }
 
 void FODEQAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+
+    // Restore the plugin state from memory
+    auto ValueTree = juce::ValueTree::readFromData(data, sizeInBytes);
+    if (ValueTree.isValid())
+    {
+        // Replace plugin state and update filters with saved parameter values
+        APVS.replaceState(ValueTree);
+        UpdateFilters();
+    }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateParameterLayout()
@@ -307,8 +318,9 @@ void FODEQAudioProcessor::UpdateHighCutFilters(const ChainSettings& ChainSetting
 	UpdateCutFilter(RightHighCut, HighCutCoefficients, ChainSettings.HighCutSlope);
 }
 
-void FODEQAudioProcessor::UpdateFilters(ChainSettings& ChainSettings)
+void FODEQAudioProcessor::UpdateFilters()
 {
+    auto ChainSettings = GetChainSettings(APVS);
     UpdateLowCutFilters(ChainSettings);
     UpdatePeakFilter(ChainSettings);
     UpdateHighCutFilters(ChainSettings);

@@ -69,7 +69,7 @@ public:
 
     // AudioProcessorValueTreeState setup
     static juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
-    juce::AudioProcessorValueTreeState AudioProcessorValueTreeState {*this, nullptr, "Parameters", CreateParameterLayout()};
+    juce::AudioProcessorValueTreeState APVS {*this, nullptr, "Parameters", CreateParameterLayout()};
 
 private:
     // Type aliases (since the DSP namespace uses a lot of nested namespaces)
@@ -132,7 +132,7 @@ private:
     void UpdateLowCutFilters(const ChainSettings& ChainSettings);
     void UpdateHighCutFilters(const ChainSettings& ChainSettings);
 
-    void UpdateFilters(ChainSettings& ChainSettings);
+    void UpdateFilters();
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessor)
