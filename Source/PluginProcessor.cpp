@@ -129,6 +129,67 @@ void FODEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     *LeftChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
     *RightChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
+
+    // Slope choice 0: 12 db/oct -> order: 2. Slope choice 1: 24 db/oct -> order: 4. Slope choice 2: 36 db/oct -> order: 6. Slope choice 3: 48 db/oct -> order: 8
+    auto CutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, sampleRate, 2 * (ChainSettings.LowCutSlope + 1));
+
+    auto AssignCoefficients = [&](FODEQAudioProcessor::CutFilter& CutFilter)
+    {
+        CutFilter.setBypassed<0>(true);
+        CutFilter.setBypassed<1>(true);
+        CutFilter.setBypassed<2>(true);
+        CutFilter.setBypassed<3>(true);
+
+		switch (ChainSettings.LowCutSlope)
+		{
+		case Slope_12:
+		{
+			// If our order is 2 (meaning a 12db/oct slope), CutCoeffecients has 1 value.
+			// We will assign our coefficients to the first link in the cut filter chain and also stop bypassing it
+			*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+            CutFilter.setBypassed<0>(false);
+			break;
+		}
+		case Slope_24:
+		{
+			// If our order is 4 (meaning a 12db/oct slope), CutCoeffecients has 2 values.
+			// We will assign our coefficients to the first two links in the cut filter chain and also stop bypassing them
+			*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+            CutFilter.setBypassed<0>(false);
+			*CutFilter.get<1>().coefficients = *CutCoefficients[1];
+            CutFilter.setBypassed<1>(false);
+			break;
+		}
+		case Slope_36:
+		{
+			*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+            CutFilter.setBypassed<0>(false);
+			*CutFilter.get<1>().coefficients = *CutCoefficients[1];
+            CutFilter.setBypassed<1>(false);
+			*CutFilter.get<2>().coefficients = *CutCoefficients[2];
+            CutFilter.setBypassed<2>(false);
+			break;
+		}
+		case Slope_48:
+		{
+			*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+            CutFilter.setBypassed<0>(false);
+			*CutFilter.get<1>().coefficients = *CutCoefficients[1];
+            CutFilter.setBypassed<1>(false);
+			*CutFilter.get<2>().coefficients = *CutCoefficients[2];
+            CutFilter.setBypassed<2>(false);
+			*CutFilter.get<3>().coefficients = *CutCoefficients[3];
+            CutFilter.setBypassed<3>(false);
+			break;
+		}
+		}
+    };
+
+    // Initialise each chain (get it, bypass all links in the chain, then assign coefficients to chain links based on the order number)
+	auto& LeftLowCut = LeftChannelChain.get<ChainPositions::LowCut>();
+    AssignCoefficients(LeftLowCut);
+	auto& RightLowCut = RightChannelChain.get<ChainPositions::LowCut>();
+    AssignCoefficients(RightLowCut);
 }
 
 void FODEQAudioProcessor::releaseResources()
@@ -186,6 +247,66 @@ void FODEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
 	*LeftChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
 	*RightChannelChain.get<ChainPositions::Peak>().coefficients = *PeakCoefficients;
+
+	auto CutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, getSampleRate(), 2 * (ChainSettings.LowCutSlope + 1));
+
+	auto AssignCoefficients = [&](FODEQAudioProcessor::CutFilter& CutFilter)
+		{
+			CutFilter.setBypassed<0>(true);
+			CutFilter.setBypassed<1>(true);
+			CutFilter.setBypassed<2>(true);
+			CutFilter.setBypassed<3>(true);
+
+			switch (ChainSettings.LowCutSlope)
+			{
+			case Slope_12:
+			{
+				// If our order is 2 (meaning a 12db/oct slope), CutCoeffecients has 1 value.
+				// We will assign our coefficients to the first link in the cut filter chain and also stop bypassing it
+				*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+				CutFilter.setBypassed<0>(false);
+				break;
+			}
+			case Slope_24:
+			{
+				// If our order is 4 (meaning a 12db/oct slope), CutCoeffecients has 2 values.
+				// We will assign our coefficients to the first two links in the cut filter chain and also stop bypassing them
+				*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+				CutFilter.setBypassed<0>(false);
+				*CutFilter.get<1>().coefficients = *CutCoefficients[1];
+				CutFilter.setBypassed<1>(false);
+				break;
+			}
+			case Slope_36:
+			{
+				*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+				CutFilter.setBypassed<0>(false);
+				*CutFilter.get<1>().coefficients = *CutCoefficients[1];
+				CutFilter.setBypassed<1>(false);
+				*CutFilter.get<2>().coefficients = *CutCoefficients[2];
+				CutFilter.setBypassed<2>(false);
+				break;
+			}
+			case Slope_48:
+			{
+				*CutFilter.get<0>().coefficients = *CutCoefficients[0];
+				CutFilter.setBypassed<0>(false);
+				*CutFilter.get<1>().coefficients = *CutCoefficients[1];
+				CutFilter.setBypassed<1>(false);
+				*CutFilter.get<2>().coefficients = *CutCoefficients[2];
+				CutFilter.setBypassed<2>(false);
+				*CutFilter.get<3>().coefficients = *CutCoefficients[3];
+				CutFilter.setBypassed<3>(false);
+				break;
+			}
+			}
+		};
+
+	// Initialise each chain (get it, bypass all links in the chain, then assign coefficients to chain links based on the order number)
+	auto& LeftLowCut = LeftChannelChain.get<ChainPositions::LowCut>();
+	AssignCoefficients(LeftLowCut);
+	auto& RightLowCut = RightChannelChain.get<ChainPositions::LowCut>();
+	AssignCoefficients(RightLowCut);
 
     // Processor chain requires a processing context to get passed to it in order to run audio through the
     // links in the chain. To create a processing context we must supply it with an AudioBlock instance.
@@ -300,8 +421,8 @@ ChainSettings GetChainSettings(juce::AudioProcessorValueTreeState& ValueTreeStat
     Settings.PeakFreq = ValueTreeState.getRawParameterValue(PeakFreqParameterName)->load();
     Settings.PeakGainInDecibels = ValueTreeState.getRawParameterValue(PeakGainParameterName)->load();
     Settings.PeakQuality = ValueTreeState.getRawParameterValue(PeakQualityParameterName)->load();
-    Settings.LowCutSlope = ValueTreeState.getRawParameterValue(LowCutSlopeParameterName)->load();
-    Settings.HighCutSlope = ValueTreeState.getRawParameterValue(HighCutSlopeParameterName)->load();
+    Settings.LowCutSlope = static_cast<Slope>(ValueTreeState.getRawParameterValue(LowCutSlopeParameterName)->load());
+    Settings.HighCutSlope = static_cast<Slope>(ValueTreeState.getRawParameterValue(HighCutSlopeParameterName)->load());
 
     return Settings;
 }
