@@ -92,6 +92,59 @@ private:
     using Coefficients = Filter::CoefficientsPtr;
     static void UpdateCoefficients(Coefficients& Old, const Coefficients& Replacements);
 
+    template<typename ChainType, typename CoefficientType>
+    void UpdateCutFilter(ChainType& LowCut, const CoefficientType& CutCoefficients, const Slope& CutSlope)
+    {
+        LowCut.setBypassed<0>(true);
+        LowCut.setBypassed<1>(true);
+        LowCut.setBypassed<2>(true);
+        LowCut.setBypassed<3>(true);
+
+		switch (CutSlope)
+		{
+		case Slope_12:
+		{
+			// If our order is 2 (meaning a 12db/oct slope), CutCoeffecients has 1 value.
+			// We will assign our coefficients to the first link in the cut filter chain and also stop bypassing it
+			*LowCut.get<0>().coefficients = *CutCoefficients[0];
+            LowCut.setBypassed<0>(false);
+			break;
+		}
+		case Slope_24:
+		{
+			// If our order is 4 (meaning a 12db/oct slope), CutCoeffecients has 2 values.
+			// We will assign our coefficients to the first two links in the cut filter chain and also stop bypassing them
+			*LowCut.get<0>().coefficients = *CutCoefficients[0];
+            LowCut.setBypassed<0>(false);
+			*LowCut.get<1>().coefficients = *CutCoefficients[1];
+            LowCut.setBypassed<1>(false);
+			break;
+		}
+		case Slope_36:
+		{
+			*LowCut.get<0>().coefficients = *CutCoefficients[0];
+            LowCut.setBypassed<0>(false);
+			*LowCut.get<1>().coefficients = *CutCoefficients[1];
+            LowCut.setBypassed<1>(false);
+			*LowCut.get<2>().coefficients = *CutCoefficients[2];
+            LowCut.setBypassed<2>(false);
+			break;
+		}
+		case Slope_48:
+		{
+			*LowCut.get<0>().coefficients = *CutCoefficients[0];
+            LowCut.setBypassed<0>(false);
+			*LowCut.get<1>().coefficients = *CutCoefficients[1];
+            LowCut.setBypassed<1>(false);
+			*LowCut.get<2>().coefficients = *CutCoefficients[2];
+            LowCut.setBypassed<2>(false);
+			*LowCut.get<3>().coefficients = *CutCoefficients[3];
+            LowCut.setBypassed<3>(false);
+			break;
+		}
+		}
+    }
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessor)
 };
