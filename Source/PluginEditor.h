@@ -30,6 +30,11 @@ private:
     // GUI Sliders
     CustomRotarySlider PeakFreqSlider, PeakGainSlider, PeakQualitySlider, LowCutFreqSlider, HighCutFreqSlider, LowCutSlopeSlider, HighCutSlopeSlider;
 
+    using APVTS = juce::AudioProcessorValueTreeState;
+    using SliderAttachment = APVTS::SliderAttachment;
+
+    SliderAttachment PeakFreqSliderAttachment, PeakGainSliderAttachment, PeakQualitySliderAttachment, LowCutFreqSliderAttachment, HighCutFreqSliderAttachment, LowCutSlopeSliderAttachment, HighCutSlopeSliderAttachment;
+
     std::vector<juce::Component*> GetSliderComponents();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessorEditor)

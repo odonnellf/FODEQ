@@ -1,17 +1,16 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 //==============================================================================
 FODEQAudioProcessorEditor::FODEQAudioProcessorEditor (FODEQAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+    : AudioProcessorEditor (&p), audioProcessor (p),
+    PeakFreqSliderAttachment(audioProcessor.ValueTreeState, "Peak Freq", PeakFreqSlider),
+    PeakGainSliderAttachment(audioProcessor.ValueTreeState, "Peak Gain", PeakGainSlider),
+    PeakQualitySliderAttachment(audioProcessor.ValueTreeState, "Peak Quality", PeakQualitySlider),
+    LowCutFreqSliderAttachment(audioProcessor.ValueTreeState, "LowCut Freq", LowCutFreqSlider),
+    HighCutFreqSliderAttachment(audioProcessor.ValueTreeState, "HighCut Freq", HighCutFreqSlider),
+    LowCutSlopeSliderAttachment(audioProcessor.ValueTreeState, "LowCut Slope", LowCutSlopeSlider),
+    HighCutSlopeSliderAttachment(audioProcessor.ValueTreeState, "HighCut Slope", HighCutSlopeSlider)
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
@@ -55,7 +54,7 @@ void FODEQAudioProcessorEditor::resized()
     LowCutFreqSlider.setBounds(LowCutArea.removeFromTop(LowCutArea.getHeight() * 0.5));
     LowCutSlopeSlider.setBounds(LowCutArea);
 
-    HighCutFreqSlider.setBounds(HighCutArea.removeFromTop(LowCutArea.getHeight() * 0.5));
+    HighCutFreqSlider.setBounds(HighCutArea.removeFromTop(HighCutArea.getHeight() * 0.5));
     HighCutSlopeSlider.setBounds(HighCutArea);
 
     PeakFreqSlider.setBounds(BoundingBox.removeFromTop(BoundingBox.getHeight() * 0.33));

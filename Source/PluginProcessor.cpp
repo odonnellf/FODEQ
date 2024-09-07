@@ -212,7 +212,7 @@ void FODEQAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     // Write the plugin state to the memory block
     constexpr bool bAppendToExistingBlockContent = true;
     juce::MemoryOutputStream MemOutputStream(destData, bAppendToExistingBlockContent);
-    APVS.state.writeToStream(MemOutputStream);
+    ValueTreeState.state.writeToStream(MemOutputStream);
 }
 
 void FODEQAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
@@ -225,7 +225,7 @@ void FODEQAudioProcessor::setStateInformation (const void* data, int sizeInBytes
     if (ValueTree.isValid())
     {
         // Replace plugin state and update filters with saved parameter values
-        APVS.replaceState(ValueTree);
+        ValueTreeState.replaceState(ValueTree);
         UpdateFilters();
     }
 }
@@ -320,7 +320,7 @@ void FODEQAudioProcessor::UpdateHighCutFilters(const ChainSettings& ChainSetting
 
 void FODEQAudioProcessor::UpdateFilters()
 {
-    auto ChainSettings = GetChainSettings(APVS);
+    auto ChainSettings = GetChainSettings(ValueTreeState);
     UpdateLowCutFilters(ChainSettings);
     UpdatePeakFilter(ChainSettings);
     UpdateHighCutFilters(ChainSettings);

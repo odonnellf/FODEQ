@@ -69,7 +69,7 @@ public:
 
     // AudioProcessorValueTreeState setup
     static juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
-    juce::AudioProcessorValueTreeState APVS {*this, nullptr, "Parameters", CreateParameterLayout()};
+    juce::AudioProcessorValueTreeState ValueTreeState {*this, nullptr, "Parameters", CreateParameterLayout()};
 
 private:
     // Type aliases (since the DSP namespace uses a lot of nested namespaces)
