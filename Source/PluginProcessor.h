@@ -101,6 +101,7 @@ private:
     template<typename ChainType, typename CoefficientType>
     void UpdateCutFilter(ChainType& Chain, const CoefficientType& Coefficients, const Slope& Slope)
     {
+        // Bypass all links in the chain, then assign coefficients to chain links based on the order number
         Chain.setBypassed<0>(true);
         Chain.setBypassed<1>(true);
         Chain.setBypassed<2>(true);
@@ -127,6 +128,11 @@ private:
 		}
         }
     }
+
+    void UpdateLowCutFilters(const ChainSettings& ChainSettings);
+    void UpdateHighCutFilters(const ChainSettings& ChainSettings);
+
+    void UpdateFilters(ChainSettings& ChainSettings);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessor)

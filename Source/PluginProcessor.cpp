@@ -124,16 +124,7 @@ void FODEQAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     // Coefficients for Peak filter
 	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
-	UpdatePeakFilter(ChainSettings);
-
-    // Slope choice 0: 12 db/oct -> order: 2. Slope choice 1: 24 db/oct -> order: 4. Slope choice 2: 36 db/oct -> order: 6. Slope choice 3: 48 db/oct -> order: 8
-    auto CutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, sampleRate, 2 * (ChainSettings.LowCutSlope + 1));
-
-    // Initialise each chain (get it, bypass all links in the chain, then assign coefficients to chain links based on the order number)
-	auto& LeftLowCut = LeftChannelChain.get<ChainPositions::LowCut>();
-    UpdateCutFilter(LeftLowCut, CutCoefficients, ChainSettings.LowCutSlope);
-	auto& RightLowCut = RightChannelChain.get<ChainPositions::LowCut>();
-    UpdateCutFilter(RightLowCut, CutCoefficients, ChainSettings.LowCutSlope);
+    UpdateFilters(ChainSettings);
 }
 
 void FODEQAudioProcessor::releaseResources()
@@ -185,14 +176,7 @@ void FODEQAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
     // Always update parameters *before* we process audio through them
 	auto ChainSettings = GetChainSettings(AudioProcessorValueTreeState);
-    UpdatePeakFilter(ChainSettings);
-
-    auto CutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, getSampleRate(), 2 * (ChainSettings.LowCutSlope + 1));
-
-    auto& LeftLowCut = LeftChannelChain.get<ChainPositions::LowCut>();
-    UpdateCutFilter(LeftLowCut, CutCoefficients, ChainSettings.LowCutSlope);
-	auto& RightLowCut = RightChannelChain.get<ChainPositions::LowCut>();
-	UpdateCutFilter(RightLowCut, CutCoefficients, ChainSettings.LowCutSlope);
+    UpdateFilters(ChainSettings);
 
     // Processor chain requires a processing context to get passed to it in order to run audio through the
     // links in the chain. To create a processing context we must supply it with an AudioBlock instance.
@@ -303,6 +287,31 @@ void FODEQAudioProcessor::UpdatePeakFilter(const ChainSettings& ChainSettings)
 void FODEQAudioProcessor::SetCoefficients(Coefficients& Old, const Coefficients& Replacements)
 {
     *Old = *Replacements;
+}
+
+void FODEQAudioProcessor::UpdateLowCutFilters(const ChainSettings& ChainSettings)
+{
+	auto LowCutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, getSampleRate(), 2 * (ChainSettings.LowCutSlope + 1));
+	auto& LeftLowCut = LeftChannelChain.get<ChainPositions::LowCut>();
+	auto& RightLowCut = RightChannelChain.get<ChainPositions::LowCut>();
+	UpdateCutFilter(LeftLowCut, LowCutCoefficients, ChainSettings.LowCutSlope);
+	UpdateCutFilter(RightLowCut, LowCutCoefficients, ChainSettings.LowCutSlope);
+}
+
+void FODEQAudioProcessor::UpdateHighCutFilters(const ChainSettings& ChainSettings)
+{
+	auto& HighCutCoefficients = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(ChainSettings.HighCutFreq, getSampleRate(), 2 * (ChainSettings.HighCutSlope + 1));
+	auto& LeftHighCut = LeftChannelChain.get<ChainPositions::HighCut>();
+	auto& RightHighCut = RightChannelChain.get<ChainPositions::HighCut>();
+	UpdateCutFilter(LeftHighCut, HighCutCoefficients, ChainSettings.HighCutSlope);
+	UpdateCutFilter(RightHighCut, HighCutCoefficients, ChainSettings.HighCutSlope);
+}
+
+void FODEQAudioProcessor::UpdateFilters(ChainSettings& ChainSettings)
+{
+    UpdateLowCutFilters(ChainSettings);
+    UpdatePeakFilter(ChainSettings);
+    UpdateHighCutFilters(ChainSettings);
 }
 
 //==============================================================================
