@@ -11,8 +11,28 @@ struct CustomRotarySlider : juce::Slider
     }
 };  
 
+struct ResponseCurveComponent : juce::Component, juce::AudioProcessorParameter::Listener, juce::Timer
+{
+    ResponseCurveComponent(FODEQAudioProcessor&);
+    ~ResponseCurveComponent();
+
+	// juce::AudioProcessorParameter::Listener interface
+	void parameterValueChanged(int parameterIndex, float newValue) override;
+	void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {};
+
+	// juce::Timer interface
+	void timerCallback() override;
+
+    void paint(juce::Graphics& g) override;
+
+private:
+    FODEQAudioProcessor& audioProcessor;
+    juce::Atomic<bool> ParametersChanged = false;
+    MonoChain monoChain;
+};
+
 // A basic example audio EQ plugin
-class FODEQAudioProcessorEditor  : public juce::AudioProcessorEditor, juce::AudioProcessorParameter::Listener, juce::Timer
+class FODEQAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
     FODEQAudioProcessorEditor (FODEQAudioProcessor&);
@@ -21,13 +41,6 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
-
-    // juce::AudioProcessorParameter::Listener interface
-    void parameterValueChanged(int parameterIndex, float newValue) override;
-    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {};
-
-    // juce::Timer interface
-    void timerCallback() override;
 
 private:
     // This reference is provided as a quick way for your editor to
@@ -43,10 +56,7 @@ private:
 
     std::vector<juce::Component*> GetSliderComponents();
 
-    // Chain instance for visualizer
-    MonoChain monoChain;
-
-    juce::Atomic<bool> ParametersChanged = false;
+    ResponseCurveComponent responseCurveComponent;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FODEQAudioProcessorEditor)
 };
