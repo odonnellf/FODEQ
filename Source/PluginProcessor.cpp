@@ -298,14 +298,9 @@ void FODEQAudioProcessor::UpdatePeakFilter(const ChainSettings& ChainSettings)
     SetCoefficients(RightChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
 }
 
-void FODEQAudioProcessor::SetCoefficients(Coefficients& Old, const Coefficients& Replacements)
-{
-	*Old = *Replacements;
-}
-
 void FODEQAudioProcessor::UpdateLowCutFilters(const ChainSettings& ChainSettings)
 {
-	auto LowCutCoefficients = juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(ChainSettings.LowCutFreq, getSampleRate(), 2 * (ChainSettings.LowCutSlope + 1));
+    auto LowCutCoefficients = MakeLowCutFilter(ChainSettings, getSampleRate());
 	auto& LeftLowCut = LeftChannelChain.get<ChainPositions::LowCut>();
 	auto& RightLowCut = RightChannelChain.get<ChainPositions::LowCut>();
 	UpdateCutFilter(LeftLowCut, LowCutCoefficients, ChainSettings.LowCutSlope);
@@ -314,7 +309,7 @@ void FODEQAudioProcessor::UpdateLowCutFilters(const ChainSettings& ChainSettings
 
 void FODEQAudioProcessor::UpdateHighCutFilters(const ChainSettings& ChainSettings)
 {
-	auto& HighCutCoefficients = juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(ChainSettings.HighCutFreq, getSampleRate(), 2 * (ChainSettings.HighCutSlope + 1));
+    auto& HighCutCoefficients = MakeHighCutFilter(ChainSettings, getSampleRate());
 	auto& LeftHighCut = LeftChannelChain.get<ChainPositions::HighCut>();
 	auto& RightHighCut = RightChannelChain.get<ChainPositions::HighCut>();
 	UpdateCutFilter(LeftHighCut, HighCutCoefficients, ChainSettings.HighCutSlope);
@@ -349,4 +344,9 @@ ChainSettings GetChainSettings(juce::AudioProcessorValueTreeState& ValueTreeStat
     Settings.HighCutSlope = static_cast<Slope>(ValueTreeState.getRawParameterValue(HighCutSlopeParameterName)->load());
 
     return Settings;
+}
+
+void SetCoefficients(Coefficients& Old, const Coefficients& Replacements)
+{
+	*Old = *Replacements;
 }

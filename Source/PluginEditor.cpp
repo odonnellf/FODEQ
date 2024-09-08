@@ -20,11 +20,25 @@ FODEQAudioProcessorEditor::FODEQAudioProcessorEditor (FODEQAudioProcessor& p)
         addAndMakeVisible(SliderComponent);
     }
 
+    // Listen for when parameters change
+    const auto& AudioProcessorParameters = audioProcessor.getParameters();
+    for (auto Parameter : AudioProcessorParameters)
+    {
+        Parameter->addListener(this);
+    }
+
+    startTimerHz(60);
+
     setSize (600, 400);
 }
 
 FODEQAudioProcessorEditor::~FODEQAudioProcessorEditor()
 {
+	const auto& AudioProcessorParameters = audioProcessor.getParameters();
+	for (auto Parameter : AudioProcessorParameters)
+	{
+		Parameter->removeListener(this);
+	}
 }
 
 //==============================================================================
@@ -155,7 +169,13 @@ void FODEQAudioProcessorEditor::timerCallback()
     constexpr bool ValueToCompare = true;
     if (ParametersChanged.compareAndSetBool(NewValue, ValueToCompare))
     {
-        // Update the mono chain and signal a repaint so a new response curve gets drawn
+        // Update the mono chain 
+        auto ChainSettings = GetChainSettings(audioProcessor.ValueTreeState);
+        auto PeakCoefficients = MakePeakFilter(ChainSettings, audioProcessor.getSampleRate());
+        SetCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
+
+        // Signal a repaint so a new response curve gets drawn
+        repaint();
     }
 }
 
