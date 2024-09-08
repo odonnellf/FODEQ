@@ -286,18 +286,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout FODEQAudioProcessor::CreateP
     return Layout;
 }
 
+Coefficients MakePeakFilter(const ChainSettings& ChainSettings, double SampleRate)
+{
+	return juce::dsp::IIR::Coefficients<float>::makePeakFilter(SampleRate, ChainSettings.PeakFreq, ChainSettings.PeakQuality, juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels));
+}
+
 void FODEQAudioProcessor::UpdatePeakFilter(const ChainSettings& ChainSettings)
 {
-	auto PeakGain = juce::Decibels::decibelsToGain(ChainSettings.PeakGainInDecibels);
-	auto PeakCoefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(getSampleRate(), ChainSettings.PeakFreq, ChainSettings.PeakQuality, PeakGain);
-
+    auto PeakCoefficients = MakePeakFilter(ChainSettings, getSampleRate());
     SetCoefficients(LeftChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
     SetCoefficients(RightChannelChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
 }
 
 void FODEQAudioProcessor::SetCoefficients(Coefficients& Old, const Coefficients& Replacements)
 {
-    *Old = *Replacements;
+	*Old = *Replacements;
 }
 
 void FODEQAudioProcessor::UpdateLowCutFilters(const ChainSettings& ChainSettings)

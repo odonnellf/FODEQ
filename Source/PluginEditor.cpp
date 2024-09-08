@@ -30,12 +30,92 @@ FODEQAudioProcessorEditor::~FODEQAudioProcessorEditor()
 //==============================================================================
 void FODEQAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+    using namespace juce;
+    g.fillAll (Colours::black);
 
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::FontOptions (15.0f));
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    // Draw visualizer
+    // Get plugin area bounds
+    auto BoundingBox = getLocalBounds();
+    auto FreqResponseArea = BoundingBox.removeFromTop(BoundingBox.getHeight() * 0.33);
+    auto Width = FreqResponseArea.getWidth();
+
+	// Get our filter chain elements
+	auto& LowCut = monoChain.get<ChainPositions::LowCut>();
+	auto& Peak = monoChain.get<ChainPositions::Peak>();
+	auto& HighCut = monoChain.get<ChainPositions::HighCut>();
+	auto SampleRate = audioProcessor.getSampleRate();
+
+    // Iterate through each pixel and compute the magnitude at that frequency. Magnitude's
+    // expressed as gain units which are multiplicative (not additive like with decibels).
+	std::vector<double> Magnitudes;
+	Magnitudes.resize(Width); // One magnitude per pixel
+    for (int i = 0; i < Width; ++i)
+    {
+        // Map from pixel space to frequency space (mapping the normalized pixel number to its frequency within the human hearing range)
+        double Magnitude = 1.f; // Starting gain
+        auto MinRange = 20.0;
+        auto MaxRange = 20000.0;
+        auto Frequency = mapToLog10(double(i) / double(Width), MinRange, MaxRange);
+
+        // Check if the peak band is bypassed
+        if (!monoChain.isBypassed<ChainPositions::Peak>())
+            Magnitude *= Peak.coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+
+        if (!LowCut.isBypassed<0>())
+            Magnitude *= LowCut.get<0>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+		if (!LowCut.isBypassed<1>())
+            Magnitude *= LowCut.get<1>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+		if (!LowCut.isBypassed<2>())
+            Magnitude *= LowCut.get<2>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+		if (!LowCut.isBypassed<3>())
+            Magnitude *= LowCut.get<3>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+
+		if (!HighCut.isBypassed<0>())
+            Magnitude *= HighCut.get<0>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+		if (!HighCut.isBypassed<1>())
+            Magnitude *= HighCut.get<1>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+		if (!HighCut.isBypassed<2>())
+            Magnitude *= HighCut.get<2>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+		if (!HighCut.isBypassed<3>())
+            Magnitude *= HighCut.get<3>().coefficients->getMagnitudeForFrequency(Frequency, SampleRate);
+
+        // Convert the magnitude to decibels and store it
+        Magnitudes[i] = Decibels::gainToDecibels(Magnitude);
+    }
+
+    // Convert vector to path which we can draw
+    Path ResponseCurve;
+
+    // Define max and min positions in the window
+    const double OutputMin = FreqResponseArea.getBottom();
+    const double OutputMax = FreqResponseArea.getY();
+
+    // Peak control can go from +24 to -24, so we want our response curve window to have this range
+    const double TargetRangeMin = -24.0;
+    const double TargetRangeMax = 24.0;
+
+    auto Map = [&](double Input)
+    {
+        return jmap(Input, TargetRangeMin, TargetRangeMax, OutputMin, OutputMax);
+    };
+
+    ResponseCurve.startNewSubPath(FreqResponseArea.getX(), Map(Magnitudes.front()));
+    for (size_t i = 1; i < Magnitudes.size(); ++i)
+    {
+        ResponseCurve.lineTo(FreqResponseArea.getX() + i, Map(Magnitudes[i]));
+    }
+
+    // Draw background border
+    const float CornerSize = 4.f;
+    const float LineThickness = 1.f;
+    g.setColour(Colours::orange);
+    g.drawRoundedRectangle(FreqResponseArea.toFloat(), CornerSize, LineThickness);
+
+    // Draw path
+    float StrokeThickness = 2.f;
+    PathStrokeType StrokeType(StrokeThickness);
+    g.setColour(Colours::white);
+    g.strokePath(ResponseCurve, StrokeType);
 }
 
 void FODEQAudioProcessorEditor::resized()
@@ -60,6 +140,23 @@ void FODEQAudioProcessorEditor::resized()
     PeakFreqSlider.setBounds(BoundingBox.removeFromTop(BoundingBox.getHeight() * 0.33));
     PeakGainSlider.setBounds(BoundingBox.removeFromTop(BoundingBox.getHeight() * 0.5));
     PeakQualitySlider.setBounds(BoundingBox);
+}
+
+void FODEQAudioProcessorEditor::parameterValueChanged(int parameterIndex, float newValue)
+{
+    // Set our atomic flag to true
+    ParametersChanged.set(true);
+}
+
+void FODEQAudioProcessorEditor::timerCallback()
+{
+    // Query the atomic flag to decide if the chain needs updating and our component needs to be repainted
+    constexpr bool NewValue = false;
+    constexpr bool ValueToCompare = true;
+    if (ParametersChanged.compareAndSetBool(NewValue, ValueToCompare))
+    {
+        // Update the mono chain and signal a repaint so a new response curve gets drawn
+    }
 }
 
 std::vector<juce::Component*> FODEQAudioProcessorEditor::GetSliderComponents()
