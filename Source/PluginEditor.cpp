@@ -170,9 +170,17 @@ void FODEQAudioProcessorEditor::timerCallback()
     if (ParametersChanged.compareAndSetBool(NewValue, ValueToCompare))
     {
         // Update the mono chain 
+        auto SampleRate = audioProcessor.getSampleRate();
         auto ChainSettings = GetChainSettings(audioProcessor.ValueTreeState);
-        auto PeakCoefficients = MakePeakFilter(ChainSettings, audioProcessor.getSampleRate());
+
+        auto PeakCoefficients = MakePeakFilter(ChainSettings, SampleRate);
         SetCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, PeakCoefficients);
+
+        auto LowCutCoefficients = MakeLowCutFilter(ChainSettings, SampleRate);
+        auto HighCutCoefficients = MakeHighCutFilter(ChainSettings, SampleRate);
+
+        UpdateCutFilter(monoChain.get<ChainPositions::LowCut>(), LowCutCoefficients, ChainSettings.LowCutSlope);
+        UpdateCutFilter(monoChain.get<ChainPositions::HighCut>(), HighCutCoefficients, ChainSettings.HighCutSlope);
 
         // Signal a repaint so a new response curve gets drawn
         repaint();
